@@ -1,148 +1,98 @@
 /*
 Importer les composants de la route
 */
-    const express = require('express');
-    const router = express.Router();
-    const mySql = require('mysql');
+const express = require('express');
+const router = express.Router();
+const bodyParser = require('body-parser');
 //
 
-const dataCollection = [
-    {
-  "content": [
-    {
-      "_id": 2,
-      "content": "Ajouter les routes front et api",
-      "category": "WORK",
-      "isDone": "true"
-    },
-    {
-      "_id": 3,
-      "content": "Configurer la BDD mySql",
-      "category": "WORK",
-      "isDone": "false"
-    },
-    {
-      "_id": 5,
-      "content": "Configurer le serveur NodeJS",
-      "category": "WORK",
-      "isDone": "true"
-    },
-    {
-      "_id": 9,
-      "content": "Aller manger",
-      "category": "LIFE",
-      "isDone": "false"
-    }
-  ],
-  "fields": [
-    {
-      "catalog": "def",
-      "db": "todoes",
-      "table": "tasks",
-      "orgTable": "tasks",
-      "name": "_id",
-      "orgName": "_id",
-      "charsetNr": 63,
-      "length": 11,
-      "type": 3,
-      "flags": 16899,
-      "decimals": 0,
-      "zeroFill": false,
-      "protocol41": true
-    },
-    {
-      "catalog": "def",
-      "db": "todoes",
-      "table": "tasks",
-      "orgTable": "tasks",
-      "name": "content",
-      "orgName": "content",
-      "charsetNr": 33,
-      "length": 765,
-      "type": 253,
-      "flags": 4097,
-      "decimals": 0,
-      "zeroFill": false,
-      "protocol41": true
-    },
-    {
-      "catalog": "def",
-      "db": "todoes",
-      "table": "tasks",
-      "orgTable": "tasks",
-      "name": "category",
-      "orgName": "category",
-      "charsetNr": 33,
-      "length": 765,
-      "type": 253,
-      "flags": 4097,
-      "decimals": 0,
-      "zeroFill": false,
-      "protocol41": true
-    },
-    {
-      "catalog": "def",
-      "db": "todoes",
-      "table": "tasks",
-      "orgTable": "tasks",
-      "name": "isDone",
-      "orgName": "isDone",
-      "charsetNr": 33,
-      "length": 30,
-      "type": 253,
-      "flags": 4097,
-      "decimals": 0,
-      "zeroFill": false,
-      "protocol41": true
-    }
-  ]
-}
-]
+/*
+Configuration de Mongoose
+*/
+const mongoose = require('mongoose');
+const mongoServeur = 'mongodb://localhost:27018/blog';
+//
 
 /*
-Configurer la connexion à la BDD
+Configuration de body-parser
 */
-    const connection = mySql.createConnection({
-        host     : 'localhost',
-        port     : '8888',
-        user     : 'root',
-        password : 'root',
-        database : 'todoes'
-    });
+router.use(bodyParser.json());
+router.use(bodyParser.urlencoded({extended: false}));
 //
 
 /*
 Définition des routes
 */
-    // Accueil de l'API
-    router.get( '/', (req, res) => {
-        // Renvoyer un flux JSON dans la réponse
-        res.json( { content: 'Hello API' } );
-    });
+// Accueil de l'API
+router.get( '/', (req, res) => {
+    // Renvoyer un flux JSON dans la réponse
+    res.json( { content: 'Hello API' } );
+});
 
-    // Afficher la liste des posts
-    router.get( '/tasks', (req, res) => {
-        // Ouvrir la connexion à la BDD
-        //connection.connect();
+// Afficher la liste des posts
+router.get( '/posts', (req, res) => {
+   
+    // Connexion à la BDD MongoDB
+    mongoose.connect( mongoServeur, ( err, db ) => {
 
-            // Lancer la requête SQL
-            connection.query('SELECT * FROM tasks', (error, results, fields) => {
-                if (error) {
-                    res.json({ content: error })
+        // Tester la connexion à la BDD
+        if( err ) { res.json({ error: err }) }
+        else {
 
-                } else{
-                    res.json({ content: results, fields: fields })
-                    res.json({content})
-                }
+            // Connexion ouverte : récupérer la collection de données
+            db.collection('posts').find().toArray( (err, collection) => {
+
+                // Tester la connexion à la collection
+                if( err ) { res.json({ error: err }) }
+                else{
+
+                    // Collection récupérée
+                    res.json(collection);
+                };
             });
-            
-        // Fermer la connexion à la BDD
-        //connection.end();
+        };
+
+        // Fermer la connexion
+        db.close();
     });
+});
+
+
+// Créer une route API pour ajouter un article
+router.post('/add-post', (req, res)=> {
+    console.log(req.body)
+
+    // Connexion à la BDD MongoDB
+    mongoose.connect( mongoServeur, ( err, db ) => {
+
+        // Tester la connexion à la BDD
+        if( err ) { res.render('add-post', { msg: err }) }
+        else {
+
+            // Connexion ouverte : ajouter les données dans la BDD
+            db.collection('posts').insert( { 
+                title: req.body.title, 
+                content: req.body.content,
+                type: req.body.type 
+
+            }, (err, newObject) => {
+                // Vérifier l'ajout
+                if( err ) { res.render('add-post', { msg: err }) }
+                else{
+                    res.render('add-post', { msg: newObject })
+                };
+            });
+        };
+
+        // Fermer la connexion
+        db.close();
+    });
+
+});
 //
 
 /*
 Exporter le module de route
 */
-    module.exports = router;
+module.exports = router;
 //
